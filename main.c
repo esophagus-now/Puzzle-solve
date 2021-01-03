@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MM_IMPLEMENT
 #include "mmlib/vector.h"
 #include "mmlib/map.h"
+#include "mmlib/heap.h"
+#include "mmlib/graph.h"
 
 #define MOVE_IDS \
 	X(UP),       \
@@ -143,30 +146,6 @@ static int char_to_idx(char c) {
 	}
 }
 
-static void square_adj_mat(char dest[5][5], char src[5][5]) {
-	//Take advantage of short-circuiting
-	int i, j, k;
-	for (i = 0; i < 5; i++) {
-		for (j = 0; j < 5; j++) {
-			char res = 0;
-			for (k = 0; k < 5; k++) {
-				if (src[i][k] && src[k][j]) {
-					res = 1; break;
-				}
-			}
-			dest[i][j] = res;
-		}
-	}
-}
-
-static void cheesy_transitive_closure(char src[5][5]) {
-	char tmp[5][5];
-	char tmp2[5][5];
-	square_adj_mat(tmp, src);
-	square_adj_mat(tmp2, tmp);
-	square_adj_mat(src, tmp2);
-}
-
 void get_legal_moves(board_state const* state, VECTOR_PTR_PARAM(move, dest)) {
 	vector_clear(*dest);
 
@@ -204,23 +183,14 @@ void get_legal_moves(board_state const* state, VECTOR_PTR_PARAM(move, dest)) {
 			}
 		}
 	}
-
-	//Mark diagonals as one to simplify transitive closure 
-	//This is commented out because I happen to know my shapes
-	//will always cause the diagonals to show 1
-	/*
-	for (i = 0; i < 5; i++) {
-		is_above[i][i] = 1;
-		is_west[i][i] = 1;
-		is_north[i][i] = 1;
-	}
-	*/
-
-	//We need to raise the adjacency matrices to a power of 5
-	//or higher. The simplest way is to square three times.
-	cheesy_transitive_closure(is_above);
-	cheesy_transitive_closure(is_west);
-	cheesy_transitive_closure(is_north);
+	
+	char is_above_closure[5][5];
+	char is_west_closure[5][5];
+	char is_north_closure[5][5];
+	transitive_closure(is_above_closure[0], is_above[0], 5);
+	transitive_closure(is_west_closure[0], is_west[0], 5);
+	transitive_closure(is_north_closure[0], is_north[0], 5);
+	
 
 	//Now, for each direction, compute which pieces can go 
 	//that way. The only thing that prevents movement is the 
@@ -240,57 +210,57 @@ void get_legal_moves(board_state const* state, VECTOR_PTR_PARAM(move, dest)) {
 		if (state->base[piece] <= -5*Z_STRIDE) continue;
 
 		//Up. Check columns of is_above. 
-		if (!is_above[4][piece]) {
+		if (!is_above_closure[4][piece]) {
 			move *res = vector_lengthen(*dest);
 			res->dir = UP;
 			memset(&res->moveset, 0, sizeof(res->moveset));
 			for (j = 0; j < 4; j++) {
-				if (is_above[j][piece]) res->moveset[j] = 1;
+				if (is_above_closure[j][piece]) res->moveset[j] = 1;
 			}
 		}
 		//Down. Check rows of is_above.
-		if (!is_above[piece][4]) {
+		if (!is_above_closure[piece][4]) {
 			move *res = vector_lengthen(*dest);
 			res->dir = DOWN;
 			memset(&res->moveset, 0, sizeof(res->moveset));
 			for (j = 0; j < 4; j++) {
-				if (is_above[piece][j]) res->moveset[j] = 1;
+				if (is_above_closure[piece][j]) res->moveset[j] = 1;
 			}
 		}
 		//North. Check columns of is_north. 
-		if (!is_north[4][piece]) {
+		if (!is_north_closure[4][piece]) {
 			move *res = vector_lengthen(*dest);
 			res->dir = NORTH;
 			memset(&res->moveset, 0, sizeof(res->moveset));
 			for (j = 0; j < 4; j++) {
-				if (is_north[j][piece]) res->moveset[j] = 1;
+				if (is_north_closure[j][piece]) res->moveset[j] = 1;
 			}
 		}
 		//South. Check rows of is_north.
-		if (!is_north[piece][4]) {
+		if (!is_north_closure[piece][4]) {
 			move *res = vector_lengthen(*dest);
 			res->dir = SOUTH;
 			memset(&res->moveset, 0, sizeof(res->moveset));
 			for (j = 0; j < 4; j++) {
-				if (is_north[piece][j]) res->moveset[j] = 1;
+				if (is_north_closure[piece][j]) res->moveset[j] = 1;
 			}
 		}
 		//West. Check columns of is_west. 
-		if (!is_west[4][piece]) {
+		if (!is_west_closure[4][piece]) {
 			move *res = vector_lengthen(*dest);
 			res->dir = WEST;
 			memset(&res->moveset, 0, sizeof(res->moveset));
 			for (j = 0; j < 4; j++) {
-				if (is_west[j][piece]) res->moveset[j] = 1;
+				if (is_west_closure[j][piece]) res->moveset[j] = 1;
 			}
 		}
 		//East. Check rows of is_west.
-		if (!is_west[piece][4]) {
+		if (!is_west_closure[piece][4]) {
 			move *res = vector_lengthen(*dest);
 			res->dir = EAST;
 			memset(&res->moveset, 0, sizeof(res->moveset));
 			for (j = 0; j < 4; j++) {
-				if (is_west[piece][j]) res->moveset[j] = 1;
+				if (is_west_closure[piece][j]) res->moveset[j] = 1;
 			}
 		}
 	}
@@ -366,63 +336,11 @@ void apply_move(move const* m, board_state *dest, board_state const *src) {
 	}
 }
 
-void max_heap_insert(path_step *p, VECTOR_PTR_PARAM(path_step*, heap)) {
-	int idx = *heap_len;
-	vector_push(*heap, p);
+int ptr_path_step_compar(void const *a, void const *b) {
+	path_step const * const* pa = a;
+	path_step const * const* pb = b;
 
-	while(idx > 0) {
-		int parent = (idx - 1) / 2;
-		if ((*heap)[parent]->cost > (*heap)[idx]->cost) {
-			path_step *tmp;
-			tmp = (*heap)[parent];
-			(*heap)[parent] = (*heap)[idx];
-			(*heap)[idx] = tmp;
-		} else break;
-	}
-}
-
-path_step* max_heap_pop(VECTOR_PTR_PARAM(path_step*, heap)) {
-	if (*heap_len == 0) return NULL;
-
-	path_step *ret = (*heap)[0];
-	(*heap)[0] = *vector_back_ptr(*heap);
-	vector_pop(*heap);
-
-	//Do all the nodes with two children
-	int idx = 0;
-	while (idx < ((int)*heap_len - 2)/2) {
-		int left = 2*idx + 1;
-		int rite = 2*idx + 2;
-
-		int lowest = (((*heap)[left]->cost < (*heap)[rite]->cost)) ?
-					 left : rite;
-		
-		if ((*heap)[idx]->cost <= (*heap)[lowest]->cost) {
-			//Nothing to do; heap is fine. Return
-			return ret;
-		}
-
-		path_step *tmp = (*heap)[idx];
-		(*heap)[idx] = (*heap)[lowest];
-		(*heap)[lowest] = tmp;
-
-		idx = lowest;
-	}
-
-	//Corner case: if idx has a left child, might
-	//need to do one last swap
-	if (idx < ((int)*heap_len - 1) / 2) {
-		int left = 2*idx + 1;
-		if ((*heap)[idx]->cost <= (*heap)[left]->cost) {
-			//Nothing to do; heap is fine. Return
-			return ret;
-		}
-		path_step *tmp = (*heap)[idx];
-		(*heap)[idx] = (*heap)[left];
-		(*heap)[left] = tmp;
-	}
-
-	return ret;
+	return (*pa)->cost - (*pb)->cost;
 }
 
 int main(void) {
@@ -432,6 +350,10 @@ int main(void) {
 	//Kind of by accident, a zero-initialized path step 
 	//is exactly what I need for the initial one
 	path_step *first = calloc(1, sizeof(path_step));
+	/*first->state.base[0] = -1*Z_STRIDE;
+	first->state.base[1] = -1*Z_STRIDE;
+	first->state.base[2] =  0;
+	first->state.base[3] =  0;*/
 	vector_push(search_nodes, first);
 
 	VECTOR_DECL(move, legal_moves);
@@ -446,7 +368,8 @@ int main(void) {
 #define MAX_ITERS 100000
 	int iters = 0;
 	while (iters++ < MAX_ITERS) {
-		path_step *top = max_heap_pop(VECTOR_ARG(search_nodes));
+		path_step *top;
+		vector_heap_pop(search_nodes, &top, &ptr_path_step_compar);
 		if (!top) {
 			puts("ERROR: nothing left in moves");
 			break;
@@ -491,7 +414,9 @@ int main(void) {
 			int *prev_cost = map_search(&seen, &to_insert->state);
 			if (!prev_cost || *prev_cost > to_insert->cost) {
 				map_insert(&seen, &to_insert->state, 0, &to_insert->cost, 0);
-				max_heap_insert(to_insert, VECTOR_ARG(search_nodes));
+				vector_heap_insert(search_nodes, &to_insert, &ptr_path_step_compar);
+			} else {
+				free(to_insert); //TODO: we could avoid this extra malloc/free pair
 			}
 		}
 	}
@@ -500,11 +425,6 @@ int main(void) {
 		puts("Did not find a solution");
 	}
 
-	/*board_state tmp = {{0,0,0,0}};
-	board_map m;
-	make_map(&m, &tmp);
-	print_map(&m);*/
-
 	map_free(&seen);
 	int i;
 	for (i = 0; i < search_nodes_len; i++) free(search_nodes[i]);
@@ -512,5 +432,6 @@ int main(void) {
 	vector_free(free_us);
 	vector_free(search_nodes);
 	vector_free(legal_moves);
+
 	return 0;
 }

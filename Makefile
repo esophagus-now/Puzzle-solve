@@ -1,9 +1,10 @@
-main: main.c implement.c
+main: main.c
 	clear
-	gcc -o main -g -Wall -fno-diagnostics-show-caret main.c implement.c
+	gcc -o main -g -Wall -fno-diagnostics-show-caret main.c
 	./main
 
-debug: main
+debug:
+	gcc -g -o main main.c
 	gdb main
 
 clean:

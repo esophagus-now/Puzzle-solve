@@ -1,0 +1,85 @@
+DISASSEMBLY
+-----------
+B, C, D up
+A south
+A east (should be able to squeeze into B & D)
+C north (should poke its "chin" over the side)
+A west
+A south
+A,D west
+B down
+C east
+A north
+D west
+B south, then up so it can keep going south and poke its "chin" over the side
+C east, should poke its chin over the side
+A north (D falls naturally)
+A up
+D north, then east, then north again
+B west (should poke chin over the side)
+D south, but only by "one square"; move west into the gap in A and B
+C south
+A east (should poke chin over the side)
+D north, then east
+B north (should go right up against NW corner, chin on west side)
+C west
+D south (tricky to move it), then east
+C down (catches a bit on D)
+B south (reminder: A and B have swapped sides relative to the start position)
+B east
+B, C, D up
+B east. Don't let C fall.
+C north, should poke chin over the side
+B west
+D west (both B and D should now abut the west side)
+A south (should now be completely SE)
+B east; it should come out now. D falls naturally
+A north
+D east, but not all the way. It should come out now.
+The other pieces come out easily
+
+REASSEMBLY
+----------
+Take care to orient all the loose pieces according to 
+their original positions. A is the one with only one 
+dark square on top, D is the one with three dark squares
+on top, and both B and C have two dark squares, but B is 
+the one with the notch that A fits into.
+
+Place C so that it is in the NW corner and its chin pokes over the north side
+Place A so that it is in the NE corner and its chin pokes over the east side
+D can now be placed so that it goes all the way to the bottom
+D west
+A south (chin should poke over the south side)
+Place B right in the middle. It won't go to the bottom.
+D up
+B west, it should fit into the gap between C and D
+A north
+D east 
+B east
+C south. Don't let it fall.
+B west. Now B, C, D all fall naturally.
+B west, then north
+C up 
+D west
+D north, should nicely fit over A and B
+C east, should poke chin over the edge
+B south, should poke chin over the edge
+D west, then south 
+A all the way west
+C north
+D east, then north. Should fit over A and C 
+B east 
+D west, then south, then west. A falls naturally.
+D up
+A south 
+C west (doesn't go all the way)
+B north, then falls naturally, then all the way north
+D east. Falls naturally by a "half square"
+A south 
+C west 
+B, D up
+A east, then north, then east into the gap in B and D
+C south. Don't let it fall.
+A west, then north.
+Let everything fall back into the original position.
